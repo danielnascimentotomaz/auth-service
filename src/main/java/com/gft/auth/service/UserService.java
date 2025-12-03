@@ -8,6 +8,7 @@ import com.gft.auth.model.User;
 import com.gft.auth.repository.RoleRepository;
 import com.gft.auth.repository.UserRepository;
 import com.gft.auth.security.JwtUtil;
+import jakarta.transaction.Transactional;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -15,6 +16,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -37,27 +39,32 @@ public class UserService {
         this.jwtUtil = jwtUtil;
     }
 
+    @Transactional
     public void register(RegisterRequest request) {
 
-        // Verifica se o usuário já existe
+        // 1️⃣ Verifica se o usuário já existe
         if (userRepository.findByUsername(request.username()).isPresent()) {
             throw new BusinessException("Usuário já existe");
         }
 
-        // Cria usuário
+        // 2️⃣ Cria usuário
         User user = new User();
         user.setUsername(request.username());
         user.setPassword(passwordEncoder.encode(request.password()));
 
-        // Mapeia roles (criando automaticamente)
-        Set<Role> roles = request.roles().stream()
-                .map(roleName -> roleRepository.findByName(roleName)
-                .orElseGet(()-> roleRepository.save(new Role(roleName))))
+        // 3️⃣ Persiste ou recupera todas as roles para garantir que estão gerenciadas
+        Set<Role> managedRoles = request.roles().stream()
+                .map(roleName -> {
+                    Role role = roleRepository.findByName(roleName)
+                            .orElse(new Role(roleName));
+                    return roleRepository.save(role); // save retorna a entidade gerenciada
+                })
                 .collect(Collectors.toSet());
 
-        user.setRoles(roles);
+        // 4️⃣ Associa roles ao usuário
+        user.setRoles(managedRoles);
 
-        // Salva usuário + roles
+        // 5️⃣ Salva usuário + roles
         userRepository.save(user);
     }
 
