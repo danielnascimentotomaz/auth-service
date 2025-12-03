@@ -1,0 +1,10 @@
+spring:
+  application:
+    name: auth-service
+
+  profiles:
+    active: prd
+jwt:
+  secret: "MinhaChaveUltraSecretaParaJWT1234567890!!!!"
+  expiration-ms: 3600000 # 1 hora
+  prefix : Bearer
